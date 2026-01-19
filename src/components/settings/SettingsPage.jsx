@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { 
-  Settings, Download, Upload, Trash2, Database,
-  ToggleLeft, ToggleRight, AlertTriangle, Check, Info
+  Download, Upload, Trash2, Info, Database,
+  ToggleLeft, ToggleRight, AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { exportAllData, importData, exportMatchesCSV } from '../../utils/storage';
-import { MATCH_FORMAT_LABELS } from '../../utils/constants';
 
 function SettingsPage() {
   const { state, updateSettings } = useApp();
-  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  const handleExportJSON = () => {
+  const handleToggleWazaPrompt = () => {
+    updateSettings({ showWazaPrompt: !state.settings.showWazaPrompt });
+  };
+
+  const handleToggleAutoSave = () => {
+    updateSettings({ autoSave: !state.settings.autoSave });
+  };
+
+  const handleExportAll = () => {
     exportAllData();
   };
 
@@ -24,93 +31,72 @@ function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setImporting(true);
     try {
+      setImportStatus('loading');
       await importData(file);
-      alert('Data imported successfully! Please refresh the page.');
-      window.location.reload();
+      setImportStatus('success');
+      window.location.reload(); // Reload to refresh data
     } catch (error) {
-      alert(`Import failed: ${error.message}`);
-    } finally {
-      setImporting(false);
-      e.target.value = '';
+      setImportStatus('error');
+      console.error('Import error:', error);
     }
+
+    // Reset file input
+    e.target.value = '';
   };
 
-  const handleClearData = () => {
+  const handleClearAllData = () => {
     localStorage.clear();
-    alert('All data cleared. Please refresh the page.');
     window.location.reload();
   };
 
-  const toggleSetting = (key) => {
-    updateSettings({ [key]: !state.settings[key] });
-  };
-
   return (
-    <div className="p-4 max-w-2xl mx-auto pb-20">
+    <div className="p-4 max-w-2xl mx-auto pb-8">
       <h1 className="text-xl font-semibold text-kendo-cream mb-6">Settings</h1>
 
-      {/* App Settings */}
+      {/* Recording Preferences */}
       <div className="card mb-6">
-        <h2 className="text-sm font-semibold text-kendo-cream/60 mb-4 flex items-center gap-2">
-          <Settings className="w-4 h-4" />
-          App Settings
-        </h2>
-
+        <h2 className="text-sm font-semibold text-kendo-cream/60 mb-4">Recording Preferences</h2>
+        
         <div className="space-y-4">
-          {/* Show Waza Prompt */}
+          {/* Waza Prompt Toggle */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-kendo-cream">Show Waza Selection</p>
+              <p className="text-sm text-kendo-cream">Ask for technique (waza)</p>
               <p className="text-xs text-kendo-cream/50">
-                Prompt to select technique after each ippon
+                Prompt for waza type after each score
               </p>
             </div>
             <button
-              onClick={() => toggleSetting('showWazaPrompt')}
+              onClick={handleToggleWazaPrompt}
               className="text-kendo-cream"
             >
               {state.settings.showWazaPrompt ? (
-                <ToggleRight className="w-8 h-8 text-kendo-red" />
+                <ToggleRight className="w-10 h-6 text-kendo-red" />
               ) : (
-                <ToggleLeft className="w-8 h-8 text-kendo-gray" />
+                <ToggleLeft className="w-10 h-6 text-kendo-gray" />
               )}
             </button>
           </div>
 
-          {/* Auto Save */}
+          {/* Auto Save Toggle */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-kendo-cream">Auto Save</p>
+              <p className="text-sm text-kendo-cream">Auto-save</p>
               <p className="text-xs text-kendo-cream/50">
                 Automatically save changes to local storage
               </p>
             </div>
             <button
-              onClick={() => toggleSetting('autoSave')}
+              onClick={handleToggleAutoSave}
               className="text-kendo-cream"
             >
               {state.settings.autoSave ? (
-                <ToggleRight className="w-8 h-8 text-kendo-red" />
+                <ToggleRight className="w-10 h-6 text-kendo-red" />
               ) : (
-                <ToggleLeft className="w-8 h-8 text-kendo-gray" />
+                <ToggleLeft className="w-10 h-6 text-kendo-gray" />
               )}
             </button>
-          </div>
-
-          {/* Default Match Format */}
-          <div>
-            <p className="text-sm text-kendo-cream mb-2">Default Match Format</p>
-            <select
-              value={state.settings.defaultMatchFormat}
-              onChange={(e) => updateSettings({ defaultMatchFormat: e.target.value })}
-              className="select"
-            >
-              {Object.entries(MATCH_FORMAT_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
           </div>
         </div>
       </div>
@@ -122,19 +108,41 @@ function SettingsPage() {
           Data Management
         </h2>
 
+        {/* Storage Info */}
+        <div className="bg-kendo-navy rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Info className="w-4 h-4 text-kendo-cream/40" />
+            <span className="text-xs text-kendo-cream/60">Local Storage</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-lg font-bold text-kendo-cream">{state.players.length}</p>
+              <p className="text-xs text-kendo-cream/50">Players</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-kendo-cream">{state.matches.length}</p>
+              <p className="text-xs text-kendo-cream/50">Matches</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-kendo-cream">{state.teamMatches.length}</p>
+              <p className="text-xs text-kendo-cream/50">Team Matches</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Export Options */}
         <div className="space-y-3">
-          {/* Export JSON */}
           <button
-            onClick={handleExportJSON}
+            onClick={handleExportAll}
             className="btn btn-outline w-full flex items-center justify-center gap-2"
           >
             <Download className="w-4 h-4" />
             Export All Data (JSON)
           </button>
 
-          {/* Export CSV */}
           <button
             onClick={handleExportCSV}
+            disabled={state.matches.length === 0}
             className="btn btn-outline w-full flex items-center justify-center gap-2"
           >
             <Download className="w-4 h-4" />
@@ -144,51 +152,25 @@ function SettingsPage() {
           {/* Import */}
           <label className="btn btn-outline w-full flex items-center justify-center gap-2 cursor-pointer">
             <Upload className="w-4 h-4" />
-            {importing ? 'Importing...' : 'Import Data (JSON)'}
+            Import Data (JSON)
             <input
               type="file"
               accept=".json"
               onChange={handleImport}
               className="hidden"
-              disabled={importing}
             />
           </label>
+
+          {importStatus === 'loading' && (
+            <p className="text-sm text-kendo-cream/60 text-center">Importing...</p>
+          )}
+          {importStatus === 'success' && (
+            <p className="text-sm text-green-400 text-center">Import successful!</p>
+          )}
+          {importStatus === 'error' && (
+            <p className="text-sm text-red-400 text-center">Import failed. Please check the file format.</p>
+          )}
         </div>
-      </div>
-
-      {/* Storage Stats */}
-      <div className="card mb-6">
-        <h2 className="text-sm font-semibold text-kendo-cream/60 mb-4 flex items-center gap-2">
-          <Info className="w-4 h-4" />
-          Storage Statistics
-        </h2>
-
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-bold text-kendo-cream">{state.players.length}</p>
-            <p className="text-xs text-kendo-cream/50">Players</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-kendo-cream">{state.matches.length}</p>
-            <p className="text-xs text-kendo-cream/50">Individual Matches</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-kendo-cream">{state.teamMatches.length}</p>
-            <p className="text-xs text-kendo-cream/50">Team Matches</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Cloud Sync Info */}
-      <div className="card mb-6 bg-kendo-gold/10 border-kendo-gold/30">
-        <h2 className="text-sm font-semibold text-kendo-gold mb-2 flex items-center gap-2">
-          <Info className="w-4 h-4" />
-          Cloud Sync (Coming Soon)
-        </h2>
-        <p className="text-sm text-kendo-cream/70">
-          Multi-device sync and team collaboration features will be available soon. 
-          For now, use the export/import feature to backup and share data.
-        </p>
       </div>
 
       {/* Danger Zone */}
@@ -201,15 +183,15 @@ function SettingsPage() {
         {!showClearConfirm ? (
           <button
             onClick={() => setShowClearConfirm(true)}
-            className="btn w-full bg-red-600/20 text-red-400 hover:bg-red-600/30 flex items-center justify-center gap-2"
+            className="btn w-full bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600/30"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4 inline mr-2" />
             Clear All Data
           </button>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-red-300">
-              This will permanently delete all players, matches, and settings. This cannot be undone.
+            <p className="text-sm text-red-400">
+              Are you sure? This will permanently delete all players, matches, and settings.
             </p>
             <div className="flex gap-3">
               <button
@@ -219,8 +201,8 @@ function SettingsPage() {
                 Cancel
               </button>
               <button
-                onClick={handleClearData}
-                className="btn bg-red-600 text-white hover:bg-red-700 flex-1"
+                onClick={handleClearAllData}
+                className="btn bg-red-600 text-white flex-1"
               >
                 Yes, Delete Everything
               </button>
@@ -230,11 +212,23 @@ function SettingsPage() {
       </div>
 
       {/* About */}
-      <div className="mt-8 text-center text-sm text-kendo-cream/40">
-        <p className="font-semibold text-kendo-cream/60">TCWStats v1.0.0</p>
-        <p>Team Canada Women's Kendo Statistics Tracker</p>
-        <p className="mt-2">
-          Built for tracking ippons, analyzing performance, and improving your kendo.
+      <div className="card mt-6">
+        <h2 className="text-sm font-semibold text-kendo-cream/60 mb-3">About</h2>
+        <div className="space-y-2 text-sm text-kendo-cream/70">
+          <p><strong>TCWStats</strong> v1.0.0</p>
+          <p>Team Canada Women's Kendo Statistics Tracker</p>
+          <p className="text-xs text-kendo-cream/50 mt-2">
+            Built for tracking ippons, analyzing performance, and improving team results.
+          </p>
+        </div>
+      </div>
+
+      {/* Cloud Sync Placeholder */}
+      <div className="card mt-6 bg-kendo-gold/10 border-kendo-gold/30">
+        <h2 className="text-sm font-semibold text-kendo-gold mb-2">Coming Soon: Cloud Sync</h2>
+        <p className="text-xs text-kendo-cream/60">
+          Real-time collaboration and multi-device sync will be available in a future update.
+          Your data is currently stored locally on this device.
         </p>
       </div>
     </div>
